@@ -9,21 +9,6 @@ class SensorError(Exception):
 
 
 class Sensor:
-    # sensors last readings
-    __Temperature = 0.0
-    __Humidity = 0
-    __Co2 = 0
-
-    # serial connection parameters
-    __COM_Port = ""
-    __BAUD_Rate = 115200
-    # Modbus register needed
-    __MODBUS_Slave_address = 1
-    __MODBUS_register_start_address = 0
-    __COM_Port_isOpen = False
-
-    # object of modbus lib once connected
-    __ModbusClient = None
 
     def check_crc(self, data, crc_received):
         data = data.to_bytes(2)
@@ -47,6 +32,20 @@ class Sensor:
 
     def __init__(self, comport: str):
 
+        self.__Temperature = 0.0
+        self.__Humidity = 0
+        self.__Co2 = 0
+
+        # serial connection parameters
+        self.__COM_Port = ""
+        self.__BAUD_Rate = 115200
+        # Modbus register needed
+        self.__MODBUS_Slave_address = 1
+        self.__MODBUS_register_start_address = 0
+        self.__COM_Port_isOpen = False
+
+        # object of modbus lib once connected
+        self.__ModbusClient = None
         self.__COM_Port = comport
         self.__ModbusClient = ModbusSerialClient(
             port=comport,
@@ -94,11 +93,11 @@ class Sensor:
                 print(result.registers)
             # if self.check_crc(0xbeef,0x92) is True:
             # TODO
-            #     if (self.check_crc(result.registers[0], result.registers[1]) is True and
-            #             self.check_crc(result.registers[2],result.registers[3]) is True and
-            #             self.check_crc(result.registers[4], result.registers[5]) is True
-            #     ):
-            if (1):
+            if (self.check_crc(result.registers[0], result.registers[1]) is True and
+                    self.check_crc(result.registers[2],result.registers[3]) is True and
+                    self.check_crc(result.registers[4], result.registers[5]) is True
+            ):
+            # if (1):
                     self.__Co2 = result.registers[0]
                     self.__Temperature = (-45) + (175 * (result.registers[2] / (pow(2, 16) - 1)))
                     self.__Humidity = 100 * (result.registers[4] / (pow(2, 16) - 1))
