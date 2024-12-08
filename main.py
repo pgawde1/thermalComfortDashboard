@@ -10,7 +10,6 @@ import serial.tools.list_ports
 from Sensor import Sensor, SensorError
 
 
-
 class UI:
 
     def __init__(self):
@@ -57,7 +56,7 @@ class UI:
             # only wait for producer thread if it exists.
             # It may be that sensor thread was never started.
             self.__active_data_thread_handle.join()
-            self.__active_data_thread_handle=None
+            self.__active_data_thread_handle = None
             print("sensor thread exit")
 
     def sensor_data_thread(self):
@@ -73,7 +72,7 @@ class UI:
                     self.__exitEvent.clear()
                     print("exiting producer")
                     return
-                
+
                 if self.__portCloseEvent.is_set():
                     self.__portCloseEvent.clear()
                     self.__combo_COMPort["state"] = "readonly"
@@ -92,7 +91,7 @@ class UI:
                 # print("data-mutex[rel]")
                 print(f"T:{self.__Temperature},H:{self.__Humidity},CO2:{self.__CO2}")
                 self.update_readings()
-                sleep(10)
+                sleep(1)
         except SensorError as err:
             print(err)
             messagebox.showerror("Error", f"Failed to open port {self.__combo_COMPort.get().split(":")[0]} !")
@@ -105,13 +104,40 @@ class UI:
         if self.__selected_temperature_unit.get() == "°C":
             self.__t_var.set(str(self.__Temperature))
         else:
-            self.__t_var.set(str(round(((self.__Temperature*9/5)+32),1)))
+            self.__t_var.set(str(round(((self.__Temperature * 9 / 5) + 32), 1)))
 
         self.__h_var.set(str(self.__Humidity))
         self.__co2_var.set(str(self.__CO2))
         # g_mutex_readings.release()
         print("ui-mutex[rel]")
         # self.__root.after(100, self.update_readings)
+
+    def get_com_ports(self):
+        ports = serial.tools.list_ports.comports()
+        l_ports = []
+        for port, desc, hwid in ports:
+            l_ports.append(f"{port}: {desc}")
+        return l_ports
+
+    def open_button_action(self):
+        print(self.__combo_COMPort.get())
+
+        if self.__combo_COMPort.get() == "":  # Check if nothing is selected
+            messagebox.showwarning("No Selection", "Please select a COM port.")
+            return
+
+        try:
+            self.__active_data_thread_handle = threading.Thread(target=self.sensor_data_thread)
+            self.__active_data_thread_handle.start()
+
+        except Exception as err:
+            print(err)
+
+    def close_button_action(self):
+        print(f"request to close {self.__combo_COMPort.get()}")
+        if self.__active_data_thread_handle:
+            # assumes that thread was created and is running
+            self.__portCloseEvent.set()
 
     def temperature_unitChange(self):
         # TODO: add code to modify existing reading
@@ -130,6 +156,28 @@ class UI:
         self.__t_var = StringVar()
         self.__h_var = StringVar()
         self.__co2_var = StringVar()
+
+        self.__frame_ComPort = ttk.Frame(
+            self.__root,
+            borderwidth=5,
+            relief="raised",
+            # padding=20,
+        )
+        self.__frame_ComPort.pack(anchor="nw", padx=10, pady=10)
+
+        self.__label_COMPort = ttk.Label(self.__frame_ComPort, text="COM Port: ")
+        self.__label_COMPort["relief"] = SOLID
+        self.__label_COMPort.pack(side=LEFT)
+
+        self.__combo_COMPort = ttk.Combobox(self.__frame_ComPort, state="readonly", values=self.get_com_ports())
+        self.__combo_COMPort.pack(side=LEFT, padx=10)
+
+        self.__button_openPort = ttk.Button(self.__frame_ComPort, text="open", command=self.open_button_action)
+        self.__button_openPort.pack(side=LEFT, padx=10)
+
+        self.__button_closePort = ttk.Button(self.__frame_ComPort, text="close", state="disabled",
+                                             command=self.close_button_action)
+        self.__button_closePort.pack(side=LEFT, padx=10)
 
         # create a Frame for temperature -------------------------------------------------------
         self.__frame_temperature = ttk.Frame(
@@ -166,7 +214,7 @@ class UI:
 
         )
         self.__label_temperatureReading["relief"] = SOLID
-        self.__label_temperatureReading.pack(pady=5, side=LEFT,fill="x",expand=TRUE)
+        self.__label_temperatureReading.pack(pady=5, side=LEFT, fill="x", expand=TRUE)
 
         # 3. create a label for temperature units text
 
@@ -184,27 +232,27 @@ class UI:
             anchor="w"
         )
         self.__label_temperatureUnit["relief"] = SOLID
-        self.__label_temperatureUnit.pack(pady=5, side=LEFT,fill="x",expand=TRUE)
-
+        self.__label_temperatureUnit.pack(pady=5, side=LEFT, fill="x", expand=TRUE)
 
         # 4. create a frame to hold radio buttons for units
         self.__frame_radio_units = ttk.Frame(
             self.__frame_temperature
         )
-        self.__frame_radio_units.pack(anchor="w",side="left")
-        self.__frame_radio_units["relief"]=SOLID
-
+        self.__frame_radio_units.pack(anchor="w", side="left")
+        self.__frame_radio_units["relief"] = SOLID
 
         # 5. create radio buttons and pack
         self.__radio_celsius = ttk.Radiobutton(
-            self.__frame_radio_units, text="°C", value="°C", variable=self.__selected_temperature_unit, command=self.temperature_unitChange
+            self.__frame_radio_units, text="°C", value="°C", variable=self.__selected_temperature_unit,
+            command=self.temperature_unitChange
         )
         self.__radio_Fahrenheit = ttk.Radiobutton(
-            self.__frame_radio_units, text="°F", value="°F", variable=self.__selected_temperature_unit, command=self.temperature_unitChange
+            self.__frame_radio_units, text="°F", value="°F", variable=self.__selected_temperature_unit,
+            command=self.temperature_unitChange
         )
 
-        self.__radio_celsius.pack(fill=X,expand=TRUE)
-        self.__radio_Fahrenheit.pack(fill=X,expand=TRUE)
+        self.__radio_celsius.pack(fill=X, expand=TRUE)
+        self.__radio_Fahrenheit.pack(fill=X, expand=TRUE)
 
         # ------create a Frame for humidity -------------------------------------------------------
 
@@ -236,20 +284,19 @@ class UI:
             anchor="e"
         )
         self.__label_humidityReading["relief"] = SOLID
-        self.__label_humidityReading.pack(pady=5,side=LEFT,expand=True,fill="x")
+        self.__label_humidityReading.pack(pady=5, side=LEFT, expand=True, fill="x")
 
         # 3. create label for humidity units
         self.__label_humidityUnits = ttk.Label(
-        self.__frame_humidity,
-        text="%",
-        font=("Arial", 30),
-        borderwidth=1,
-        padding=5,
-        anchor="w"
+            self.__frame_humidity,
+            text="%",
+            font=("Arial", 30),
+            borderwidth=1,
+            padding=5,
+            anchor="w"
         )
         self.__label_humidityUnits["relief"] = SOLID
-        self.__label_humidityUnits.pack(pady=5,side=LEFT,expand=TRUE,fill="x")
-
+        self.__label_humidityUnits.pack(pady=5, side=LEFT, expand=TRUE, fill="x")
 
         # ------create a Frame for CO2 -------------------------------------------------------
         self.__frame_CO2 = ttk.Frame(
@@ -280,20 +327,20 @@ class UI:
             anchor="e"
         )
         self.__label_CO2Reading["relief"] = SOLID
-        self.__label_CO2Reading.pack(pady=5, side=LEFT, fill="x",expand=TRUE)
+        self.__label_CO2Reading.pack(pady=5, side=LEFT, fill="x", expand=TRUE)
 
         # 3. create a label for co2 units
         self.__label_CO2Unit = ttk.Label(
-        self.__frame_CO2,
-        text="ppm",
-        font=("Arial", 30),
-        borderwidth=1,
-        padding=5,
-        anchor="w"
+            self.__frame_CO2,
+            text="ppm",
+            font=("Arial", 30),
+            borderwidth=1,
+            padding=5,
+            anchor="w"
         )
         self.__label_CO2Unit["relief"] = SOLID
 
-        self.__label_CO2Unit.pack(pady=5, side=LEFT, fill="x",expand=TRUE)
+        self.__label_CO2Unit.pack(pady=5, side=LEFT, fill="x", expand=TRUE)
 
         # other tasks to be done before gui loop is called---------------------------------------------------------
         # self.__root.after(100, self.update_readings)
@@ -301,9 +348,7 @@ class UI:
         # Extra trial space---------------------------------------------------------
 
 
-
 def main():
-
     thermalDashboard = UI()
     thermalDashboard.start()
 
