@@ -56,7 +56,7 @@ class Sensor:
             timeout=1
         )
         if self.__ModbusClient.connect() is False:
-            raise SensorError(f"{comport} is open")
+            raise SensorError(f"error opening {comport}")
         else:
             self.__COM_Port_isOpen = True
             print("sensor created")
