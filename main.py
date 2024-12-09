@@ -11,6 +11,7 @@ from tkinter import filedialog
 from tkinter.filedialog import askdirectory
 from datetime import datetime
 import serial.tools.list_ports
+from pythermalcomfort.models import pmv_ppd
 
 from Sensor import Sensor, SensorError
 
@@ -20,6 +21,10 @@ class UI:
     def __init__(self):
         # create window first
 
+        self.__label_sensation_reading = None
+        self.__var_sensation = None
+        self.__label_sensation = None
+        self.__frame_sensation = None
         self.__var_append_create = None
         self.__stopLoggingEvent = threading.Event()
         self.__radio_create = None
@@ -148,6 +153,22 @@ class UI:
 
             self.__h_var.set(str(self.__Humidity))
             self.__co2_var.set(str(self.__CO2))
+
+            result = pmv_ppd(tdb=self.__Temperature, tr=25, vr=0.1, rh=self.__Humidity, met=1, clo=0.36, standard="ashrae")
+            if result['pmv']<=-2.5:
+                self.__var_sensation.set("Cold")
+            elif -2.5 < result['pmv'] <= -1.5:
+                self.__var_sensation.set("Cool")
+            elif -1.5 < result['pmv'] <= -0.5:
+                self.__var_sensation.set("Slightly Cool")
+            elif -0.5 < result['pmv'] <= 0.5:
+                self.__var_sensation.set("Neutral")
+            elif 0.5 < result['pmv'] <= 1.5:
+                self.__var_sensation.set("Slightly Warm")
+            elif 1.5 < result['pmv'] <= 2.5:
+                self.__var_sensation.set("Warm")
+            else:
+                self.__var_sensation.set("Hot")
 
         self.__root.after(100, self.update_readings)
 
@@ -502,7 +523,7 @@ class UI:
 
         # FRAME for LOGGING--------------------------------------------------
         self.__frame_log = ttk.Frame(self.__root,width=50, height=50, borderwidth=5, relief="raised", padding=20)
-        self.__frame_log.pack(side=LEFT, anchor="nw", padx=10, pady=10, expand=TRUE, fill="x")
+        self.__frame_log.pack( anchor="nw", padx=10, pady=10,  fill="x")
 
         # Title Label
         self.__title_label = ttk.Label(self.__frame_log, text="Log", font=("Arial", 14))
@@ -561,9 +582,18 @@ class UI:
         self.__checkbox_difference = ttk.Checkbutton(self.__frame_log, text="Log Differences", variable=self.__var_only_difference)
         self.__checkbox_difference.pack(side="left", padx=5)
 
-        # self.__dropdown_values = ["Option 1", "Option 2", "Option 3"]
-        # self.__dropdown = ttk.Combobox(self.__frame_log, values=self.__dropdown_values, state="readonly")
-        # self.__dropdown.pack(side="left", padx=5)
+        # ---------------------------------------------------------
+        self.__frame_sensation = ttk.Frame(self.__root, borderwidth=5, relief="raised", padding=20)
+        self.__frame_sensation.pack( anchor="nw", padx=10, pady=10, fill="x")
+
+        self.__label_sensation = ttk.Label(self.__frame_sensation, text="Sensation", font=("Arial", 14))
+        self.__label_sensation.pack(anchor="w", pady=5)
+
+        self.__var_sensation=StringVar()
+        self.__var_sensation.set("___")
+        self.__label_sensation_reading = ttk.Label(self.__frame_sensation, text="-",textvariable=self.__var_sensation, font=("Arial", 14))
+        self.__label_sensation_reading.pack(anchor="w", pady=5)
+
         # other tasks to be done before gui loop is called---------------------------------------------------------
         self.__root.after(100, self.update_readings)
 
