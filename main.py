@@ -147,7 +147,7 @@ class UI:
             self.__t_var.set(str(round(((self.__Temperature * 9 / 5) + 32), 1)))
         print(f"{self.__selected_temperature_unit.get()} is set")
 
-    def draw_gui(self):
+        def draw_gui(self):
 
         self.__root.title("thermalComfortDashboard 1.0")
         self.__root.minsize(width=1000, height=1000)
@@ -157,6 +157,7 @@ class UI:
         self.__h_var = StringVar()
         self.__co2_var = StringVar()
 
+        # create a Frame for COM Port -------------------------------------------------------
         self.__frame_ComPort = ttk.Frame(
             self.__root,
             borderwidth=5,
@@ -166,7 +167,7 @@ class UI:
         self.__frame_ComPort.pack(anchor="nw", padx=10, pady=10)
 
         self.__label_COMPort = ttk.Label(self.__frame_ComPort, text="COM Port: ")
-        self.__label_COMPort["relief"] = SOLID
+        # self.__label_COMPort["relief"] = SOLID
         self.__label_COMPort.pack(side=LEFT)
 
         self.__combo_COMPort = ttk.Combobox(self.__frame_ComPort, state="readonly", values=self.get_com_ports())
@@ -179,16 +180,26 @@ class UI:
                                              command=self.close_button_action)
         self.__button_closePort.pack(side=LEFT, padx=10)
 
+        #create a wrapper frame
+        self.__frame_reading_wrapper = ttk.Frame(
+            self.__root,
+            # width=50,
+            # height=50,
+            # borderwidth=5,
+            # relief="raised",
+            # padding=20,
+        )
+        self.__frame_reading_wrapper.pack(fill="x")
         # create a Frame for temperature -------------------------------------------------------
         self.__frame_temperature = ttk.Frame(
-            self.__root,
-            width=50,
-            height=50,
+            self.__frame_reading_wrapper,
+            # width=50,
+            # height=50,
             borderwidth=5,
             relief="raised",
             padding=20,
         )
-        self.__frame_temperature.pack(side=LEFT, anchor="nw", padx=10, pady=10)
+        self.__frame_temperature.pack(side=LEFT, anchor="nw", padx=10, pady=10,fill="x",expand=TRUE)
 
         # 1.create a temperature text Label
         self.__label_temperatureText = ttk.Label(
@@ -199,7 +210,7 @@ class UI:
             width=15,
             anchor=CENTER,
         )
-        self.__label_temperatureText["relief"] = SOLID
+        # self.__label_temperatureText["relief"] = SOLID
         self.__label_temperatureText.pack()
 
         # 2. create a temperature reading Label
@@ -213,7 +224,7 @@ class UI:
             anchor="e"
 
         )
-        self.__label_temperatureReading["relief"] = SOLID
+        # self.__label_temperatureReading["relief"] = SOLID
         self.__label_temperatureReading.pack(pady=5, side=LEFT, fill="x", expand=TRUE)
 
         # 3. create a label for temperature units text
@@ -231,7 +242,7 @@ class UI:
             textvariable=self.__selected_temperature_unit,
             anchor="w"
         )
-        self.__label_temperatureUnit["relief"] = SOLID
+        # self.__label_temperatureUnit["relief"] = SOLID
         self.__label_temperatureUnit.pack(pady=5, side=LEFT, fill="x", expand=TRUE)
 
         # 4. create a frame to hold radio buttons for units
@@ -239,7 +250,7 @@ class UI:
             self.__frame_temperature
         )
         self.__frame_radio_units.pack(anchor="w", side="left")
-        self.__frame_radio_units["relief"] = SOLID
+        # self.__frame_radio_units["relief"] = SOLID
 
         # 5. create radio buttons and pack
         self.__radio_celsius = ttk.Radiobutton(
@@ -257,9 +268,9 @@ class UI:
         # ------create a Frame for humidity -------------------------------------------------------
 
         self.__frame_humidity = ttk.Frame(
-            self.__root, width=50, height=50, borderwidth=5, relief="raised", padding=20
+            self.__frame_reading_wrapper, borderwidth=5, relief="raised", padding=20
         )
-        self.__frame_humidity.pack(side=LEFT, anchor="nw", padx=10, pady=10)
+        self.__frame_humidity.pack( side =LEFT, anchor="nw", padx=10, pady=10,expand=TRUE,fill="x")
 
         # 1. create label for humidity text
         self.__label_humidityText = ttk.Label(
@@ -270,7 +281,7 @@ class UI:
             width=15,
             anchor=CENTER,
         )
-        self.__label_humidityText["relief"] = SOLID
+        # self.__label_humidityText["relief"] = SOLID
         self.__label_humidityText.pack()
 
         # 2. create label for humidity reading
@@ -283,7 +294,7 @@ class UI:
             textvariable=self.__h_var,
             anchor="e"
         )
-        self.__label_humidityReading["relief"] = SOLID
+        # self.__label_humidityReading["relief"] = SOLID
         self.__label_humidityReading.pack(pady=5, side=LEFT, expand=True, fill="x")
 
         # 3. create label for humidity units
@@ -295,14 +306,14 @@ class UI:
             padding=5,
             anchor="w"
         )
-        self.__label_humidityUnits["relief"] = SOLID
+        # self.__label_humidityUnits["relief"] = SOLID
         self.__label_humidityUnits.pack(pady=5, side=LEFT, expand=TRUE, fill="x")
 
         # ------create a Frame for CO2 -------------------------------------------------------
         self.__frame_CO2 = ttk.Frame(
-            self.__root, width=50, height=50, borderwidth=5, relief="raised", padding=20
+            self.__frame_reading_wrapper, borderwidth=5, relief="raised", padding=20
         )
-        self.__frame_CO2.pack(side=LEFT, anchor="nw", padx=10, pady=10)
+        self.__frame_CO2.pack(side=LEFT, anchor="nw", padx=10, pady=10,fill="x", expand=TRUE)
 
         # 1. create label for co2 text
         self.__label_CO2Text = ttk.Label(
@@ -313,7 +324,7 @@ class UI:
             width=15,
             anchor=CENTER,
         )
-        self.__label_CO2Text["relief"] = SOLID
+        # self.__label_CO2Text["relief"] = SOLID
         self.__label_CO2Text.pack()
 
         # 2. create a label for co2 reading
@@ -326,7 +337,7 @@ class UI:
             textvariable=self.__co2_var,
             anchor="e"
         )
-        self.__label_CO2Reading["relief"] = SOLID
+        # self.__label_CO2Reading["relief"] = SOLID
         self.__label_CO2Reading.pack(pady=5, side=LEFT, fill="x", expand=TRUE)
 
         # 3. create a label for co2 units
@@ -338,12 +349,76 @@ class UI:
             padding=5,
             anchor="w"
         )
-        self.__label_CO2Unit["relief"] = SOLID
+        # self.__label_CO2Unit["relief"] = SOLID
 
         self.__label_CO2Unit.pack(pady=5, side=LEFT, fill="x", expand=TRUE)
 
+        # FRAME for LOGGING--------------------------------------------------
+        self.__frame_log = ttk.Frame(self.__root,width=50, height=50, borderwidth=5, relief="raised", padding=20)
+        self.__frame_log.pack(side=LEFT, anchor="nw", padx=10, pady=10, expand=TRUE, fill="x")
+
+        # Title Label
+        self.__title_label = ttk.Label(self.__frame_log, text="Log", font=("Arial", 14))
+        self.__title_label.pack(anchor="w", pady=5)
+
+        # Buttons Frame
+        self.__frame_button_log = ttk.Frame(self.__frame_log)
+        self.__frame_button_log.pack(fill="x", pady=5)
+
+        self.__button_start_log = ttk.Button(self.__frame_button_log, text="Start", command=self.start_logging, width=10)
+        self.__button_start_log.pack(side="left", padx=5)
+
+        self.__button_stop_log = ttk.Button(self.__frame_button_log, state="disabled",text="Stop", command=self.stop_logging, width=10)
+        self.__button_stop_log.pack(side="left", padx=5)
+
+        # Folder Path Frame
+        self.__frame_folder_log = ttk.Frame(self.__frame_log)
+        self.__frame_folder_log.pack(fill="x", pady=5)
+
+        self.__label_folder = ttk.Label(self.__frame_folder_log, text="Folder Path:")
+        self.__label_folder.pack(side="left", padx=5)
+
+        self.__entry_folderName = ttk.Entry(self.__frame_folder_log)
+        self.__entry_folderName.pack(side="left", fill="x", expand=True, padx=5)
+
+        self.__button_filebrowse = ttk.Button(self.__frame_folder_log, text="Browse", command=self.browse_folder)
+        self.__button_filebrowse.pack(side="left", padx=5)
+
+        # File Name Frame
+        self.__frame_fileName = ttk.Frame(self.__frame_log)
+        self.__frame_fileName.pack(fill="x", pady=5)
+
+        self.__label_fileName = ttk.Label(self.__frame_fileName, text="File Name:")
+        self.__label_fileName.pack(side="left", padx=5)
+
+        self.__entry_fileName = ttk.Entry(self.__frame_fileName)
+        self.__entry_fileName.pack(side="left", fill="x", expand=True, padx=5)
+
+        # Options Frame
+        self.__frame_options = ttk.Frame(self.__frame_log)
+        self.__frame_options.pack(fill="x", pady=5)
+
+        self.__var_append_create = StringVar(value="append")
+
+        self.__radio_append = ttk.Radiobutton(self.__frame_log, text="Append if exists", variable=self.__var_append_create, value="append")
+        self.__radio_append.pack(side="left", padx=5)
+
+        self.__radio_create = ttk.Radiobutton(self.__frame_log, text="Create new", variable=self.__var_append_create, value="create")
+        self.__radio_create.pack(side="left", padx=5)
+
+        # Checkbox and Dropdown Frame
+        # misc_frame = ttk.Frame(self.__frame_log)
+        # misc_frame.pack(fill="x", pady=5)
+
+        self.__var_only_difference = BooleanVar()
+        self.__checkbox_difference = ttk.Checkbutton(self.__frame_log, text="Log Differences", variable=self.__var_only_difference)
+        self.__checkbox_difference.pack(side="left", padx=5)
+
+        # self.__dropdown_values = ["Option 1", "Option 2", "Option 3"]
+        # self.__dropdown = ttk.Combobox(self.__frame_log, values=self.__dropdown_values, state="readonly")
+        # self.__dropdown.pack(side="left", padx=5)
         # other tasks to be done before gui loop is called---------------------------------------------------------
-        # self.__root.after(100, self.update_readings)
+        self.__root.after(100, self.update_readings)
 
         # Extra trial space---------------------------------------------------------
 
