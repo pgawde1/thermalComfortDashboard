@@ -93,13 +93,13 @@ class Sensor:
                 print(result.registers)
             # if self.check_crc(0xbeef,0x92) is True:
             # TODO
-            if (self.check_crc(result.registers[0], result.registers[1]) is True and
-                    self.check_crc(result.registers[2],result.registers[3]) is True and
-                    self.check_crc(result.registers[4], result.registers[5]) is True
-            ):
-            # if (1):
-                    self.__Co2 = result.registers[0]
-                    self.__Temperature = (-45) + (175 * (result.registers[2] / (pow(2, 16) - 1)))
-                    self.__Humidity = 100 * (result.registers[4] / (pow(2, 16) - 1))
+                if (self.check_crc(result.registers[0], result.registers[1]) is True and
+                        self.check_crc(result.registers[2],result.registers[3]) is True and
+                        self.check_crc(result.registers[4], result.registers[5]) is True
+                ):
+                # if (1):
+                        self.__Co2 = result.registers[0]
+                        self.__Temperature = (-45) + (175 * (result.registers[2] / (pow(2, 16) - 1)))
+                        self.__Humidity = 100 * (result.registers[4] / (pow(2, 16) - 1))
             else:
                 print(result)
