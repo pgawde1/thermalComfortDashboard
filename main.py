@@ -1,10 +1,15 @@
+import os
+import time
 from functools import partial
 import threading
-from threading import Lock
+from threading import Lock, Thread
 from tkinter import *
 from tkinter import ttk
 from tkinter import messagebox
 from time import sleep
+from tkinter import filedialog
+from tkinter.filedialog import askdirectory
+from datetime import datetime
 import serial.tools.list_ports
 
 from Sensor import Sensor, SensorError
@@ -15,6 +20,30 @@ class UI:
     def __init__(self):
         # create window first
 
+        self.__var_append_create = None
+        self.__stopLoggingEvent = threading.Event()
+        self.__radio_create = None
+        self.__radio_append = None
+        self.__logging_thread_handle = None
+        self.__checkbox_difference = None
+        self.__var_only_difference = None
+        self.__create_button = None
+        self.__append_button = None
+        self.__file_option = None
+        self.__frame_options = None
+        self.__entry_fileName = None
+        self.__label_fileName = None
+        self.__frame_fileName = None
+        self.__button_filebrowse = None
+        self.__entry_folderName = None
+        self.__label_folder = None
+        self.__frame_folder_log = None
+        self.__button_stop_log = None
+        self.__button_start_log = None
+        self.__frame_button_log = None
+        self.__frame_reading_wrapper = None
+        self.__title_label = None
+        self.__frame_log = None
         self.__active_data_thread_handle = None
         self.__CO2 = None
         self.__Humidity = None
@@ -45,6 +74,8 @@ class UI:
         self.__t_var = None
         self.__exitEvent = threading.Event()
         self.__portCloseEvent = threading.Event()
+        self.__dataUpdated_LOG_Event = threading.Event()
+        self.__dataUpdated_GUI_Event = threading.Event()
         self.__root = Tk()
 
     def start(self):
@@ -58,6 +89,13 @@ class UI:
             self.__active_data_thread_handle.join()
             self.__active_data_thread_handle = None
             print("sensor thread exit")
+        if self.__logging_thread_handle:
+            self.__logging_thread_handle.join()
+            self.__logging_thread_handle=None
+            print("logging thread exit")
+
+        self.__exitEvent.clear()
+
 
     def sensor_data_thread(self):
 
@@ -69,7 +107,7 @@ class UI:
             while True:
                 if self.__exitEvent.is_set():
                     # this is set when gui loop exits in start function. Event is set. When producer thread wakes up, it exits.
-                    self.__exitEvent.clear()
+                    # self.__exitEvent.clear()
                     print("exiting producer")
                     return
 
@@ -90,7 +128,9 @@ class UI:
                 # g_mutex_readings.release()
                 # print("data-mutex[rel]")
                 print(f"T:{self.__Temperature},H:{self.__Humidity},CO2:{self.__CO2}")
-                self.update_readings()
+                # self.update_readings()
+                self.__dataUpdated_LOG_Event.set()
+                self.__dataUpdated_GUI_Event.set()
                 sleep(1)
         except SensorError as err:
             print(err)
@@ -98,19 +138,18 @@ class UI:
 
     def update_readings(self):
 
-        # while True:
-        # g_mutex_readings.acquire()
-        print("ui-mutex[acq]")
-        if self.__selected_temperature_unit.get() == "°C":
-            self.__t_var.set(str(self.__Temperature))
-        else:
-            self.__t_var.set(str(round(((self.__Temperature * 9 / 5) + 32), 1)))
+        if self.__dataUpdated_GUI_Event.is_set():
+            self.__dataUpdated_GUI_Event.clear()
+            print("updateUI...")
+            if self.__selected_temperature_unit.get() == "°C":
+                self.__t_var.set(str(self.__Temperature))
+            else:
+                self.__t_var.set(str(round(((self.__Temperature * 9 / 5) + 32), 1)))
 
-        self.__h_var.set(str(self.__Humidity))
-        self.__co2_var.set(str(self.__CO2))
-        # g_mutex_readings.release()
-        print("ui-mutex[rel]")
-        # self.__root.after(100, self.update_readings)
+            self.__h_var.set(str(self.__Humidity))
+            self.__co2_var.set(str(self.__CO2))
+
+        self.__root.after(100, self.update_readings)
 
     def get_com_ports(self):
         ports = serial.tools.list_ports.comports()
@@ -147,7 +186,115 @@ class UI:
             self.__t_var.set(str(round(((self.__Temperature * 9 / 5) + 32), 1)))
         print(f"{self.__selected_temperature_unit.get()} is set")
 
-        def draw_gui(self):
+    def sensor_log_thread(self):
+        self.__button_stop_log["state"]="enabled"
+        self.__button_start_log["state"] = "disabled"
+        self.__button_filebrowse["state"]= "disabled"
+
+        self.__entry_folderName["state"] = "disabled"
+        self.__entry_fileName["state"] = "disabled"
+
+        self.__radio_append["state"] = "disabled"
+        self.__radio_create["state"] = "disabled"
+        self.__checkbox_difference["state"] = "disabled"
+
+        lastTemperature = None
+        lastHumidity = None
+        lastCO2 = None
+
+        print(self.__entry_folderName.get())
+        print(self.__entry_fileName.get())
+
+        if self.__var_only_difference.get():
+            print("checked")
+        logfileObj=None
+        if self.__var_append_create.get() == "create":
+            logfileObj=open(f"{self.__entry_folderName.get()}/{self.__entry_fileName.get()}.csv", "w")
+            logfileObj.write("time,t,h,co2\n")
+        else:
+            # append is selected. this assumes that column headers are already present
+            logfileObj = open(f"{self.__entry_folderName.get()}/{self.__entry_fileName.get()}.csv", "a")
+        while True:
+            if self.__exitEvent.is_set():
+                if logfileObj:
+                    logfileObj.close()
+                    logfileObj=None
+                return
+            if self.__stopLoggingEvent.is_set():
+                self.__stopLoggingEvent.clear()
+                self.__button_stop_log["state"] = "disabled"
+                self.__button_start_log["state"] = "enabled"
+                self.__button_filebrowse["state"] = "enabled"
+
+                self.__entry_folderName["state"] = "enabled"
+                self.__entry_fileName["state"] = "enabled"
+
+                self.__radio_append["state"] = "enabled"
+                self.__radio_create["state"] = "enabled"
+                self.__checkbox_difference["state"] = "enabled"
+                if logfileObj:
+                    logfileObj.close()
+                    logfileObj=None
+                return
+            if self.__dataUpdated_LOG_Event.is_set():
+                self.__dataUpdated_LOG_Event.clear()
+                # code comes here only when data is generated
+                print(f"LOG :{self.__Temperature},{self.__Humidity},{self.__CO2}")
+
+
+                if self.__var_only_difference.get():
+                    if (self.__Temperature != lastTemperature)or(self.__Humidity != lastHumidity)or(self.__CO2 != lastCO2):
+                        logfileObj.write(f"{int(time.time())},{self.__Temperature},{self.__Humidity},{self.__CO2}\n")
+                    else:
+                        print("reading same as before!!")
+                else:
+                    logfileObj.write(f"{int(time.time())},{self.__Temperature},{self.__Humidity},{self.__CO2}\n")
+
+
+
+                lastTemperature = self.__Temperature
+                lastHumidity = self.__Humidity
+                lastCO2 = self.__CO2
+            time.sleep(0.1)
+
+    def start_logging(self):
+        folder_path = self.__entry_folderName.get()
+        file_name = self.__entry_fileName.get()
+
+        if not folder_path:
+            messagebox.showerror(title="folder error",message="Invalid folder path")
+            return
+
+        if not os.path.isdir(folder_path):
+            messagebox.showerror(title="folder error",message=f"{folder_path} is invalid")
+            return
+
+        if not file_name:
+            messagebox.showerror(title="file error",message=f"Invalid file name")
+            return
+
+        print(f"Folder - {folder_path}, File - {file_name}")
+
+        self.__logging_thread_handle = threading.Thread(target=self.sensor_log_thread)
+        self.__logging_thread_handle.start()
+
+
+
+
+    def stop_logging(self):
+        print(f"request to stop logging")
+        if self.__logging_thread_handle:
+            # assumes that thread was created and is running
+            self.__stopLoggingEvent.set()
+
+    def browse_folder(self):
+        selected_folder = askdirectory(title="Select a folder")
+        if selected_folder:
+            self.__entry_folderName.delete(0, END)
+            self.__entry_folderName.insert(0, selected_folder)
+            print(f"Selected folder: {selected_folder}")
+
+    def draw_gui(self):
 
         self.__root.title("thermalComfortDashboard 1.0")
         self.__root.minsize(width=1000, height=1000)
@@ -426,18 +573,5 @@ class UI:
 def main():
     thermalDashboard = UI()
     thermalDashboard.start()
-
-    # gui_thread_handle = threading.Thread(target=draw_gui)
-    # gui_thread_handle.start()
-
-    # uiUpdate_thread_handle = threading.Thread(target=update_readings)
-    # uiUpdate_thread_handle.start()
-
-    # gui_thread_handle.join()
-    # print("return GUI thread!!!!!")
-    # exit_signal = True
-    # data_thread_handle.join()
-    # print("return data thread!!!!!")
-
 
 main()
