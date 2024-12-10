@@ -13,6 +13,9 @@ from datetime import datetime
 import serial.tools.list_ports
 from pythermalcomfort.models import pmv_ppd
 
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+
 from Sensor import Sensor, SensorError
 
 
@@ -21,6 +24,14 @@ class UI:
     def __init__(self):
         # create window first
 
+        self.__button_apply_settings = None
+        self.__label_clothing = None
+        self.__frame_clothing = None
+        self.__label_activity = None
+        self.__frame_activity = None
+        self.__frame_settings = None
+        self.__combo_clothing = None
+        self.__combo_activity = None
         self.__label_sensation_reading = None
         self.__var_sensation = None
         self.__label_sensation = None
@@ -82,6 +93,44 @@ class UI:
         self.__dataUpdated_LOG_Event = threading.Event()
         self.__dataUpdated_GUI_Event = threading.Event()
         self.__root = Tk()
+        self.__dict_activity={"Sleeping": 0.7,
+        "Reclining": 0.8,
+        "Seated, quiet": 1.0,
+        "Reading, seated": 1.0,
+        "Writing": 1.0,
+        "Typing": 1.1,
+        "Standing, relaxed": 1.2,
+        "Filing, seated": 1.2,
+        "Flying aircraft, routine": 1.2,
+        "Filing, standing": 1.4,
+        "Driving a car": 1.5,
+        "Walking about": 1.7,
+        "Cooking": 1.8,
+        "Table sawing": 1.8,
+        "Walking 2mph (3.2kmh)": 2.0,
+        "Lifting/packing": 2.1,
+        "Seated, heavy limb movement": 2.2,
+        "Light machine work": 2.2,
+        "Flying aircraft, combat": 2.4,
+        "Walking 3mph (4.8kmh)": 2.6,
+        "House cleaning": 2.7,
+        "Driving, heavy vehicle": 3.2,
+        "Dancing": 3.4,
+        "Calisthenics": 3.5,
+        "Walking 4mph (6.4kmh)": 3.8,
+        "Tennis": 3.8,
+        "Heavy machine work": 4.0,
+        "Handling 100lb (45 kg) bags": 4.0
+        }
+        self.__dict_clothing={"Walking shorts, short-sleeve shirt": 0.36,
+        "Typical summer indoor clothing": 0.5,
+        "Knee-length skirt, short-sleeve shirt, sandals, underwear": 0.54,
+        "Trousers, short-sleeve shirt, socks, shoes, underwear": 0.57,
+        "Trousers, long-sleeve shirt": 0.61,
+        "Knee-length skirt, long-sleeve shirt, full slip": 0.67,
+        "Sweat pants, long-sleeve sweatshirt": 0.74,
+        "Jacket, Trousers, long-sleeve shirt": 0.96,
+        "Typical winter indoor clothing": 1.0}
 
     def start(self):
         self.draw_gui()
@@ -315,6 +364,9 @@ class UI:
             self.__entry_folderName.insert(0, selected_folder)
             print(f"Selected folder: {selected_folder}")
 
+    def apply_changed_settings(self):
+        print(self.__combo_activity.get())
+        print(self.__combo_clothing.get())
     def draw_gui(self):
 
         self.__root.title("thermalComfortDashboard 1.0")
@@ -594,6 +646,25 @@ class UI:
         self.__label_sensation_reading = ttk.Label(self.__frame_sensation, text="-",textvariable=self.__var_sensation, font=("Arial", 14))
         self.__label_sensation_reading.pack(anchor="w", pady=5)
 
+        self.__frame_settings=ttk.Frame(self.__frame_sensation, borderwidth=5, relief="raised", padding=20)
+        self.__frame_settings.pack(anchor="w",expand=True)
+        self.__frame_activity=ttk.Frame(self.__frame_settings,  borderwidth=5,  padding=20)
+        self.__frame_activity.pack(side=LEFT)
+        self.__label_activity = ttk.Label(self.__frame_activity, text="Activity", font=("Arial", 14))
+        self.__label_activity.pack()
+        self.__combo_activity= ttk.Combobox(self.__frame_activity, width=30,values=[key for key in self.__dict_activity])
+        self.__combo_activity.pack()
+
+        self.__frame_clothing = ttk.Frame(self.__frame_settings,  borderwidth=5, padding=20)
+        self.__frame_clothing.pack(side=LEFT)
+        self.__label_clothing = ttk.Label(self.__frame_clothing, text="Clothing", font=("Arial", 14))
+        self.__label_clothing.pack()
+        self.__combo_clothing = ttk.Combobox(self.__frame_clothing, width=30, values=[key for key in self.__dict_clothing])
+        self.__combo_clothing.pack()
+
+        self.__button_apply_settings = ttk.Button(self.__frame_settings, text="apply", command=self.apply_changed_settings)
+        self.__button_apply_settings.pack(side=LEFT, padx=10)
+
         # other tasks to be done before gui loop is called---------------------------------------------------------
         self.__root.after(100, self.update_readings)
 
@@ -603,5 +674,5 @@ class UI:
 def main():
     thermalDashboard = UI()
     thermalDashboard.start()
-
+    
 main()
