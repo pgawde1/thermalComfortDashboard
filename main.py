@@ -15,6 +15,7 @@ from pythermalcomfort.models import pmv_ppd
 
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from pythermalcomfort.utilities import clo_dynamic, v_relative
 
 from Sensor import Sensor, SensorError
 
@@ -24,6 +25,9 @@ class UI:
     def __init__(self):
         # create window first
 
+        self.__canvas_widget = None
+        self.__canvas = None
+        self.__point = None
         self.__button_apply_settings = None
         self.__label_clothing = None
         self.__frame_clothing = None
@@ -132,6 +136,9 @@ class UI:
         "Jacket, Trousers, long-sleeve shirt": 0.96,
         "Typical winter indoor clothing": 1.0}
 
+    def on_closing(self):
+        self.__root.destroy()
+        plt.close(self.__fig)
     def start(self):
         self.draw_gui()
         self.__root.mainloop()
@@ -148,6 +155,7 @@ class UI:
             self.__logging_thread_handle=None
             print("logging thread exit")
 
+        # plt.close(self.__fig)
         self.__exitEvent.clear()
 
 
@@ -203,7 +211,12 @@ class UI:
             self.__h_var.set(str(self.__Humidity))
             self.__co2_var.set(str(self.__CO2))
 
-            result = pmv_ppd(tdb=self.__Temperature, tr=25, vr=0.1, rh=self.__Humidity, met=1, clo=0.36, standard="ashrae")
+            self.__point.set_data([self.__Temperature], [self.__Humidity])
+            self.__canvas.draw()
+            metabolic_rate = self.__dict_activity[self.__combo_activity.get()]
+            clothing = clo_dynamic(self.__dict_clothing[self.__combo_clothing.get()],metabolic_rate)
+            air_relative=v_relative(0.1,metabolic_rate)
+            result = pmv_ppd(tdb=self.__Temperature, tr=25, vr=air_relative, rh=self.__Humidity, met=metabolic_rate, clo=clothing, standard="ashrae")
             if result['pmv']<=-2.5:
                 self.__var_sensation.set("Cold")
             elif -2.5 < result['pmv'] <= -1.5:
@@ -348,9 +361,6 @@ class UI:
         self.__logging_thread_handle = threading.Thread(target=self.sensor_log_thread)
         self.__logging_thread_handle.start()
 
-
-
-
     def stop_logging(self):
         print(f"request to stop logging")
         if self.__logging_thread_handle:
@@ -365,8 +375,82 @@ class UI:
             print(f"Selected folder: {selected_folder}")
 
     def apply_changed_settings(self):
-        print(self.__combo_activity.get())
-        print(self.__combo_clothing.get())
+        # print(self.__combo_activity.get())
+        # print(self.__combo_clothing.get())
+        list_rh, list_low, list_high = self.get_graph_margins()
+        self.__ax.clear()
+        self.__point, = self.__ax.plot([], [], marker='*', color='red', markersize=10, label='Point')
+        self.__ax.set_xlabel('Air Temperature (C)')
+        self.__ax.set_ylabel('Relative Humidity (%)')
+        self.__ax.set_xlim(10, 36)
+        self.__ax.set_ylim(0, 100)
+        self.__ax.set_title('T vs Rh in Neutral Band')
+        plt.grid()
+        self.__ax.fill_betweenx(list_rh, list_low, list_high, color='teal', alpha=0.2)
+        plt.legend(['Neutral Band'])
+        self.__canvas.draw()
+
+    def get_graph_margins(self):
+        low_list = []
+        high_list = []
+        rh_list = []
+        metabolic_rate = self.__dict_activity[self.__combo_activity.get()]
+        clothing = clo_dynamic(self.__dict_clothing[self.__combo_clothing.get()], metabolic_rate)
+        air_relative = v_relative(0.1, metabolic_rate)
+
+        for rh in range(101):
+            i = 10.0
+            low = 0.0
+            high = 0.0
+            while i < 36.0:
+
+                result = pmv_ppd(tdb=i, tr=25, vr=air_relative, rh=rh, met=metabolic_rate, clo=clothing, standard="ashrae")
+                if result['pmv'] > -0.5 and low == 0.0:
+                    low = i
+                elif result['pmv'] >= 0.5 and high == 0.0:
+                    high = i
+                    break
+                else:
+                    i += 0.1
+            # print(f"rh:{rh}")
+            # print(f"low:{low}")
+            # print(f"high:{high}")
+            # dic[rh]={"l":low,"h":high}
+            rh_list.append(round(rh, 1))
+            low_list.append(round(low, 1))
+            high_list.append(round(high, 1))
+            # print(f"{round(rh, 1)},{round(low, 1)},{round(high, 1)}")
+            # print("done")
+        # other way of getting readings
+        # i=10.0
+        # temp_list = []
+        # while i <= 36:
+        #     temp_list.append(i)
+        #     i = i + 0.1
+        # for rh in range(101):
+        #     result = pmv_ppd(tdb=temp_list, tr=25, vr=air_relative, rh=rh, met=metabolic_rate, clo=clothing, standard="ashrae",limit_inputs=False)
+        #     low = 0.0
+        #     low_index = 0
+        #     low_temp = 0.0
+        #     high = 0.0
+        #     high_index = 0
+        #     high_temp = 0.0
+        #     for index, value in enumerate(result["pmv"]):
+        #         if value > -0.5 and low == 0.0:
+        #             low = value
+        #             low_index = index
+        #             low_temp = 10.0 + (index / 10)
+        #         elif value >= 0.5 and high == 0.0:
+        #             high = value
+        #             high_index = index
+        #             high_temp = 10.0 + (index / 10)
+        #             break
+        #     # print(f"rh= {rh}, low: {low_temp}->{low} , high:{high_temp}->{high}")
+        #     rh_list.append(round(rh, 1))
+        #     low_list.append(round(low_temp, 1))
+        #     high_list.append(round(high_temp, 1))
+
+        return rh_list,low_list,high_list
     def draw_gui(self):
 
         self.__root.title("thermalComfortDashboard 1.0")
@@ -638,21 +722,22 @@ class UI:
         self.__frame_sensation = ttk.Frame(self.__root, borderwidth=5, relief="raised", padding=20)
         self.__frame_sensation.pack( anchor="nw", padx=10, pady=10, fill="x")
 
-        self.__label_sensation = ttk.Label(self.__frame_sensation, text="Sensation", font=("Arial", 14))
+        self.__label_sensation = ttk.Label(self.__frame_sensation, text="Sensation", font=("Arial", 30))
         self.__label_sensation.pack(anchor="w", pady=5)
 
         self.__var_sensation=StringVar()
         self.__var_sensation.set("___")
-        self.__label_sensation_reading = ttk.Label(self.__frame_sensation, text="-",textvariable=self.__var_sensation, font=("Arial", 14))
+        self.__label_sensation_reading = ttk.Label(self.__frame_sensation, text="-",textvariable=self.__var_sensation, font=("Arial", 30),)
         self.__label_sensation_reading.pack(anchor="w", pady=5)
 
         self.__frame_settings=ttk.Frame(self.__frame_sensation, borderwidth=5, relief="raised", padding=20)
-        self.__frame_settings.pack(anchor="w",expand=True)
+        self.__frame_settings.pack(anchor="w",expand=True,side=LEFT)
         self.__frame_activity=ttk.Frame(self.__frame_settings,  borderwidth=5,  padding=20)
         self.__frame_activity.pack(side=LEFT)
         self.__label_activity = ttk.Label(self.__frame_activity, text="Activity", font=("Arial", 14))
         self.__label_activity.pack()
         self.__combo_activity= ttk.Combobox(self.__frame_activity, width=30,values=[key for key in self.__dict_activity])
+        self.__combo_activity.set("Seated, quiet")
         self.__combo_activity.pack()
 
         self.__frame_clothing = ttk.Frame(self.__frame_settings,  borderwidth=5, padding=20)
@@ -660,16 +745,44 @@ class UI:
         self.__label_clothing = ttk.Label(self.__frame_clothing, text="Clothing", font=("Arial", 14))
         self.__label_clothing.pack()
         self.__combo_clothing = ttk.Combobox(self.__frame_clothing, width=30, values=[key for key in self.__dict_clothing])
+        self.__combo_clothing.set("Typical summer indoor clothing")
         self.__combo_clothing.pack()
 
         self.__button_apply_settings = ttk.Button(self.__frame_settings, text="apply", command=self.apply_changed_settings)
         self.__button_apply_settings.pack(side=LEFT, padx=10)
 
+
+
+        # MATPLOtLIB---------------------------------------------------------------------------------------------------------
+        self.__fig, self.__ax = plt.subplots()
+
+        list_rh,list_low,list_high = self.get_graph_margins()
+
+        self.__ax.fill_betweenx(list_rh, list_low, list_high, color='teal', alpha=0.2)
+        #
+        self.__ax.set_xlabel('Air Temperature (C)')
+        self.__ax.set_ylabel('Relative Humidity (%)')
+        self.__ax.set_xlim(10, 36)
+        self.__ax.set_ylim(0, 100)
+        self.__ax.set_title('T vs Rh in Neutral Band')
+        plt.legend(['Neutral Band'])
+        plt.grid()
+
+        # create an empty point object to be plotted later on
+        self.__point, = self.__ax.plot([], [], marker='*', color='red', markersize=10, label='Point')
+
+        # Embed the Matplotlib figure in Tkinter
+        self.__frame_chart = ttk.Frame(self.__frame_sensation, borderwidth=5, relief="raised", padding=20)
+        self.__frame_chart.pack(anchor="w", expand=True, side=LEFT, fill=BOTH)
+        self.__canvas = FigureCanvasTkAgg(self.__fig, master=self.__frame_chart)
+        self.__canvas_widget = self.__canvas.get_tk_widget()
+        self.__canvas_widget.pack()
+
         # other tasks to be done before gui loop is called---------------------------------------------------------
         self.__root.after(100, self.update_readings)
 
         # Extra trial space---------------------------------------------------------
-
+        self.__root.protocol("WM_DELETE_WINDOW", self.on_closing)
 
 def main():
     thermalDashboard = UI()
