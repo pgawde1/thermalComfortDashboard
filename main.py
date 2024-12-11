@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from pythermalcomfort.utilities import clo_dynamic, v_relative
 
+
 from Sensor import Sensor, SensorError
 
 
@@ -97,8 +98,7 @@ class UI:
         self.__dataUpdated_LOG_Event = threading.Event()
         self.__dataUpdated_GUI_Event = threading.Event()
         self.__root = Tk()
-        self.__dict_activity={"Sleeping": 0.7,
-        "Reclining": 0.8,
+        self.__dict_activity={
         "Seated, quiet": 1.0,
         "Reading, seated": 1.0,
         "Writing": 1.0,
@@ -198,39 +198,68 @@ class UI:
             print(err)
             messagebox.showerror("Error", f"Failed to open port {self.__combo_COMPort.get().split(":")[0]} !")
 
+    def update_sensation(self):
+        metabolic_rate = self.__dict_activity[self.__combo_activity.get()]
+        clothing = clo_dynamic(self.__dict_clothing[self.__combo_clothing.get()], metabolic_rate)
+        air_relative = v_relative(0.1, metabolic_rate)
+        result = pmv_ppd(tdb=self.__Temperature, tr=25, vr=air_relative, rh=self.__Humidity, met=metabolic_rate, clo=clothing, standard="ashrae")
+        if result['pmv'] <= -2.5:
+            self.__var_sensation.set("Cold")
+        elif -2.5 < result['pmv'] <= -1.5:
+            self.__var_sensation.set("Cool")
+        elif -1.5 < result['pmv'] <= -0.5:
+            self.__var_sensation.set("Slightly Cool")
+            self.__style_TH_Label.configure("THFrame.TLabel", background="LightBlue1")
+        elif -0.5 < result['pmv'] <= 0.5:
+            self.__var_sensation.set("Neutral")
+            self.__style_TH_Label.configure("THFrame.TLabel", background="snow")
+        elif 0.5 < result['pmv'] <= 1.5:
+            self.__var_sensation.set("Slightly Warm")
+            self.__style_TH_Label.configure("THFrame.TLabel", background="sandy brown")
+        elif 1.5 < result['pmv'] <= 2.5:
+            self.__var_sensation.set("Warm")
+        else:
+            self.__var_sensation.set("Hot")
+
+
     def update_readings(self):
 
         if self.__dataUpdated_GUI_Event.is_set():
             self.__dataUpdated_GUI_Event.clear()
             print("updateUI...")
+
+            # 1. update temperature reading in ui
             if self.__selected_temperature_unit.get() == "°C":
                 self.__t_var.set(str(self.__Temperature))
             else:
                 self.__t_var.set(str(round(((self.__Temperature * 9 / 5) + 32), 1)))
 
+            # 2. update humidity reading in ui
             self.__h_var.set(str(self.__Humidity))
-            self.__co2_var.set(str(self.__CO2))
 
+            # 3. update co2 reading in ui
+            self.__co2_var.set(str(self.__CO2))
+            if self.__CO2 <= 600:
+                self.__style_CO2_Frame.configure("CO2Frame.TFrame",background="lime green")
+                self.__style_CO2_Label.configure("CO2Frame.TLabel", background="lime green")
+            elif self.__CO2 <= 1000:
+                self.__style_CO2_Frame.configure("CO2Frame.TFrame",background="OliveDrab1")
+                self.__style_CO2_Label.configure("CO2Frame.TLabel", background="OliveDrab1")
+            elif self.__CO2 <= 2000:
+                self.__style_CO2_Frame.configure("CO2Frame.TFrame",background="sandy brown")
+                self.__style_CO2_Label.configure("CO2Frame.TLabel", background="sandy brown")
+            else:
+                self.__style_CO2_Frame.configure("CO2Frame.TFrame", background="orange red")
+                self.__style_CO2_Label.configure("CO2Frame.TLabel", background="orange red")
+
+            # 4. update sensation feeling in ui
+            self.update_sensation()
+
+            # 5. plot new reading in chart
             self.__point.set_data([self.__Temperature], [self.__Humidity])
             self.__canvas.draw()
-            metabolic_rate = self.__dict_activity[self.__combo_activity.get()]
-            clothing = clo_dynamic(self.__dict_clothing[self.__combo_clothing.get()],metabolic_rate)
-            air_relative=v_relative(0.1,metabolic_rate)
-            result = pmv_ppd(tdb=self.__Temperature, tr=25, vr=air_relative, rh=self.__Humidity, met=metabolic_rate, clo=clothing, standard="ashrae")
-            if result['pmv']<=-2.5:
-                self.__var_sensation.set("Cold")
-            elif -2.5 < result['pmv'] <= -1.5:
-                self.__var_sensation.set("Cool")
-            elif -1.5 < result['pmv'] <= -0.5:
-                self.__var_sensation.set("Slightly Cool")
-            elif -0.5 < result['pmv'] <= 0.5:
-                self.__var_sensation.set("Neutral")
-            elif 0.5 < result['pmv'] <= 1.5:
-                self.__var_sensation.set("Slightly Warm")
-            elif 1.5 < result['pmv'] <= 2.5:
-                self.__var_sensation.set("Warm")
-            else:
-                self.__var_sensation.set("Hot")
+
+
 
         self.__root.after(100, self.update_readings)
 
@@ -379,6 +408,8 @@ class UI:
         # print(self.__combo_clothing.get())
         list_rh, list_low, list_high = self.get_graph_margins()
         self.__ax.clear()
+        self.__ax.fill_betweenx(list_rh, list_low, list_high, color='teal', alpha=0.2)
+        plt.legend(['Neutral Band'])
         self.__point, = self.__ax.plot([], [], marker='*', color='red', markersize=10, label='Point')
         self.__ax.set_xlabel('Air Temperature (C)')
         self.__ax.set_ylabel('Relative Humidity (%)')
@@ -386,8 +417,7 @@ class UI:
         self.__ax.set_ylim(0, 100)
         self.__ax.set_title('T vs Rh in Neutral Band')
         plt.grid()
-        self.__ax.fill_betweenx(list_rh, list_low, list_high, color='teal', alpha=0.2)
-        plt.legend(['Neutral Band'])
+
         self.__canvas.draw()
 
     def get_graph_margins(self):
@@ -495,6 +525,9 @@ class UI:
         )
         self.__frame_reading_wrapper.pack(fill="x")
         # create a Frame for temperature -------------------------------------------------------
+        self.__style_TH_Label = ttk.Style()
+        self.__style_TH_Label.configure("THFrame.TLabel", background="LightBlue1")
+
         self.__frame_temperature = ttk.Frame(
             self.__frame_reading_wrapper,
             # width=50,
@@ -502,6 +535,7 @@ class UI:
             borderwidth=5,
             relief="raised",
             padding=20,
+            style="THFrame.TLabel"
         )
         self.__frame_temperature.pack(side=LEFT, anchor="nw", padx=10, pady=10,fill="x",expand=TRUE)
 
@@ -513,6 +547,7 @@ class UI:
             borderwidth=1,
             width=15,
             anchor=CENTER,
+            style="THFrame.TLabel"
         )
         # self.__label_temperatureText["relief"] = SOLID
         self.__label_temperatureText.pack()
@@ -525,7 +560,8 @@ class UI:
             borderwidth=1,
             padding=5,
             textvariable=self.__t_var,
-            anchor="e"
+            anchor="e",
+            style="THFrame.TLabel"
 
         )
         # self.__label_temperatureReading["relief"] = SOLID
@@ -544,14 +580,16 @@ class UI:
             borderwidth=1,
             padding=5,
             textvariable=self.__selected_temperature_unit,
-            anchor="w"
+            anchor="w",
+            style="THFrame.TLabel"
         )
         # self.__label_temperatureUnit["relief"] = SOLID
         self.__label_temperatureUnit.pack(pady=5, side=LEFT, fill="x", expand=TRUE)
 
         # 4. create a frame to hold radio buttons for units
         self.__frame_radio_units = ttk.Frame(
-            self.__frame_temperature
+            self.__frame_temperature,
+            style="THFrame.TLabel"
         )
         self.__frame_radio_units.pack(anchor="w", side="left")
         # self.__frame_radio_units["relief"] = SOLID
@@ -572,7 +610,8 @@ class UI:
         # ------create a Frame for humidity -------------------------------------------------------
 
         self.__frame_humidity = ttk.Frame(
-            self.__frame_reading_wrapper, borderwidth=5, relief="raised", padding=20
+            self.__frame_reading_wrapper, borderwidth=5, relief="raised", padding=20,
+            style="THFrame.TLabel"
         )
         self.__frame_humidity.pack( side =LEFT, anchor="nw", padx=10, pady=10,expand=TRUE,fill="x")
 
@@ -584,6 +623,7 @@ class UI:
             borderwidth=1,
             width=15,
             anchor=CENTER,
+            style="THFrame.TLabel"
         )
         # self.__label_humidityText["relief"] = SOLID
         self.__label_humidityText.pack()
@@ -596,7 +636,8 @@ class UI:
             borderwidth=1,
             padding=5,
             textvariable=self.__h_var,
-            anchor="e"
+            anchor="e",
+            style="THFrame.TLabel"
         )
         # self.__label_humidityReading["relief"] = SOLID
         self.__label_humidityReading.pack(pady=5, side=LEFT, expand=True, fill="x")
@@ -608,14 +649,21 @@ class UI:
             font=("Arial", 30),
             borderwidth=1,
             padding=5,
-            anchor="w"
+            anchor="w",
+            style="THFrame.TLabel"
         )
         # self.__label_humidityUnits["relief"] = SOLID
         self.__label_humidityUnits.pack(pady=5, side=LEFT, expand=TRUE, fill="x")
 
         # ------create a Frame for CO2 -------------------------------------------------------
+        self.__style_CO2_Frame = ttk.Style()
+        self.__style_CO2_Frame.configure("CO2Frame.TFrame", background="LightBlue1")
+        self.__style_CO2_Label = ttk.Style()
+        self.__style_CO2_Label.configure("CO2Frame.TLabel", background="LightBlue1")
+
+
         self.__frame_CO2 = ttk.Frame(
-            self.__frame_reading_wrapper, borderwidth=5, relief="raised", padding=20
+            self.__frame_reading_wrapper, borderwidth=5, relief="raised", padding=20, style="CO2Frame.TFrame"
         )
         self.__frame_CO2.pack(side=LEFT, anchor="nw", padx=10, pady=10,fill="x", expand=TRUE)
 
@@ -627,6 +675,7 @@ class UI:
             borderwidth=1,
             width=15,
             anchor=CENTER,
+            style="CO2Frame.TLabel"
         )
         # self.__label_CO2Text["relief"] = SOLID
         self.__label_CO2Text.pack()
@@ -639,7 +688,8 @@ class UI:
             borderwidth=1,
             padding=5,
             textvariable=self.__co2_var,
-            anchor="e"
+            anchor="e",
+            style = "CO2Frame.TLabel"
         )
         # self.__label_CO2Reading["relief"] = SOLID
         self.__label_CO2Reading.pack(pady=5, side=LEFT, fill="x", expand=TRUE)
@@ -651,7 +701,8 @@ class UI:
             font=("Arial", 30),
             borderwidth=1,
             padding=5,
-            anchor="w"
+            anchor="w",
+            style="CO2Frame.TLabel"
         )
         # self.__label_CO2Unit["relief"] = SOLID
 
