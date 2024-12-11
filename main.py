@@ -1,18 +1,13 @@
 import os
 import time
-from functools import partial
 import threading
-from threading import Lock, Thread
 from tkinter import *
 from tkinter import ttk
 from tkinter import messagebox
 from time import sleep
-from tkinter import filedialog
 from tkinter.filedialog import askdirectory
-from datetime import datetime
 import serial.tools.list_ports
 from pythermalcomfort.models import pmv_ppd
-
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from pythermalcomfort.utilities import clo_dynamic, v_relative
@@ -26,6 +21,7 @@ class UI:
     def __init__(self):
         # create window first
 
+        self.__progressbarValue = 0
         self.__canvas_widget = None
         self.__canvas = None
         self.__point = None
@@ -137,13 +133,12 @@ class UI:
         "Typical winter indoor clothing": 1.0}
 
     def on_closing(self):
-        self.__root.destroy()
+
         plt.close(self.__fig)
-    def start(self):
-        self.draw_gui()
-        self.__root.mainloop()
-        print("gui exit")
+        self.__progressbar.stop()
+
         self.__exitEvent.set()
+
         if self.__active_data_thread_handle:
             # only wait for producer thread if it exists.
             # It may be that sensor thread was never started.
@@ -152,12 +147,18 @@ class UI:
             print("sensor thread exit")
         if self.__logging_thread_handle:
             self.__logging_thread_handle.join()
-            self.__logging_thread_handle=None
+            self.__logging_thread_handle = None
             print("logging thread exit")
 
         # plt.close(self.__fig)
         self.__exitEvent.clear()
+        self.__root.quit()
 
+
+    def start(self):
+        self.draw_gui()
+        self.__root.mainloop()
+        print("gui exit")
 
     def sensor_data_thread(self):
 
@@ -178,6 +179,8 @@ class UI:
                     self.__combo_COMPort["state"] = "readonly"
                     self.__button_openPort["state"] = "enabled"
                     self.__button_closePort["state"] = "disabled"
+                    self.__active_data_thread_handle=None
+                    self.__progressbarValue=0
                     return
 
                 scd40.getData()
@@ -191,6 +194,7 @@ class UI:
                 # print("data-mutex[rel]")
                 print(f"T:{self.__Temperature},H:{self.__Humidity},CO2:{self.__CO2}")
                 # self.update_readings()
+                # self.__progressbarValue =  20
                 self.__dataUpdated_LOG_Event.set()
                 self.__dataUpdated_GUI_Event.set()
                 sleep(1)
@@ -223,7 +227,7 @@ class UI:
 
 
     def update_readings(self):
-
+        
         if self.__dataUpdated_GUI_Event.is_set():
             self.__dataUpdated_GUI_Event.clear()
             print("updateUI...")
@@ -259,8 +263,6 @@ class UI:
             self.__point.set_data([self.__Temperature], [self.__Humidity])
             self.__canvas.draw()
 
-
-
         self.__root.after(100, self.update_readings)
 
     def get_com_ports(self):
@@ -280,6 +282,7 @@ class UI:
         try:
             self.__active_data_thread_handle = threading.Thread(target=self.sensor_data_thread)
             self.__active_data_thread_handle.start()
+            self.__progressbar.start()
 
         except Exception as err:
             print(err)
@@ -289,7 +292,7 @@ class UI:
         if self.__active_data_thread_handle:
             # assumes that thread was created and is running
             self.__portCloseEvent.set()
-
+            self.__progressbar.stop()
     def temperature_unitChange(self):
         # TODO: add code to modify existing reading
         if self.__selected_temperature_unit.get() == "°C":
@@ -491,14 +494,16 @@ class UI:
         self.__h_var = StringVar()
         self.__co2_var = StringVar()
 
+        self.__frame_wrapperCOM_Progress = ttk.Frame()
+        self.__frame_wrapperCOM_Progress.pack(anchor="nw",fill="x",expand=TRUE)
         # create a Frame for COM Port -------------------------------------------------------
         self.__frame_ComPort = ttk.Frame(
-            self.__root,
+            self.__frame_wrapperCOM_Progress,
             borderwidth=5,
             relief="raised",
             # padding=20,
         )
-        self.__frame_ComPort.pack(anchor="nw", padx=10, pady=10)
+        self.__frame_ComPort.pack(anchor="nw", padx=10, pady=10, side=LEFT)
 
         self.__label_COMPort = ttk.Label(self.__frame_ComPort, text="COM Port: ")
         # self.__label_COMPort["relief"] = SOLID
@@ -513,7 +518,11 @@ class UI:
         self.__button_closePort = ttk.Button(self.__frame_ComPort, text="close", state="disabled",
                                              command=self.close_button_action)
         self.__button_closePort.pack(side=LEFT, padx=10)
+        # -------------------------------------
 
+        self.__progressbar = ttk.Progressbar(self.__frame_wrapperCOM_Progress,mode="indeterminate")
+        self.__progressbar.pack(side=LEFT,fill="x",expand=True,padx=10)
+        # -------------------------------------
         #create a wrapper frame
         self.__frame_reading_wrapper = ttk.Frame(
             self.__root,
@@ -782,7 +791,7 @@ class UI:
         self.__label_sensation_reading.pack(anchor="w", pady=5)
 
         self.__frame_settings=ttk.Frame(self.__frame_sensation, borderwidth=5, relief="raised", padding=20)
-        self.__frame_settings.pack(anchor="w",expand=True,side=LEFT)
+        self.__frame_settings.pack(anchor="w",side=LEFT)
         self.__frame_activity=ttk.Frame(self.__frame_settings,  borderwidth=5,  padding=20)
         self.__frame_activity.pack(side=LEFT)
         self.__label_activity = ttk.Label(self.__frame_activity, text="Activity", font=("Arial", 14))
@@ -824,7 +833,7 @@ class UI:
 
         # Embed the Matplotlib figure in Tkinter
         self.__frame_chart = ttk.Frame(self.__frame_sensation, borderwidth=5, relief="raised", padding=20)
-        self.__frame_chart.pack(anchor="w", expand=True, side=LEFT, fill=BOTH)
+        self.__frame_chart.pack(anchor="w", expand=True, fill=BOTH)
         self.__canvas = FigureCanvasTkAgg(self.__fig, master=self.__frame_chart)
         self.__canvas_widget = self.__canvas.get_tk_widget()
         self.__canvas_widget.pack()
