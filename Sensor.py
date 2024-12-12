@@ -10,7 +10,8 @@ class SensorError(Exception):
 
 class Sensor:
 
-    def check_crc(self, data, crc_received):
+    @staticmethod
+    def check_crc(data, crc_received):
         data = data.to_bytes(2)
         CRC8_POLYNOMIAL = 0x31
         CRC8_INIT = 0xFF
@@ -77,6 +78,13 @@ class Sensor:
     def getCO2(self):
         return round(self.__Co2)
 
+    @staticmethod
+    def extractReadings(registers:list[int]):
+        __Co2 = registers[0]
+        __Temperature = (-45) + (175 * (registers[2] / (pow(2, 16) - 1)))
+        __Humidity = 100 * (registers[4] / (pow(2, 16) - 1))
+        return __Co2,__Temperature,__Humidity
+
     def getData(self):
         if self.__COM_Port_isOpen is True:
             # Read holding registers
@@ -97,9 +105,10 @@ class Sensor:
                         self.check_crc(result.registers[2],result.registers[3]) is True and
                         self.check_crc(result.registers[4], result.registers[5]) is True
                 ):
-                # if (1):
-                        self.__Co2 = result.registers[0]
-                        self.__Temperature = (-45) + (175 * (result.registers[2] / (pow(2, 16) - 1)))
-                        self.__Humidity = 100 * (result.registers[4] / (pow(2, 16) - 1))
+
+                #         self.__Co2 = result.registers[0]
+                #         self.__Temperature = (-45) + (175 * (result.registers[2] / (pow(2, 16) - 1)))
+                #         self.__Humidity = 100 * (result.registers[4] / (pow(2, 16) - 1))
+                    self.__Co2,self.__Temperature,self.__Humidity = self.extractReadings(result.registers)
             else:
                 print(result)

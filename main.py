@@ -1,17 +1,20 @@
 import os
 import time
+from time import sleep
 import threading
+
 from tkinter import *
 from tkinter import ttk
 from tkinter import messagebox
-from time import sleep
 from tkinter.filedialog import askdirectory
+
 import serial.tools.list_ports
+
 from pythermalcomfort.models import pmv_ppd
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from pythermalcomfort.utilities import clo_dynamic, v_relative
 
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 from Sensor import Sensor, SensorError
 
@@ -62,9 +65,9 @@ class UI:
         self.__title_label = None
         self.__frame_log = None
         self.__active_data_thread_handle = None
-        self.__CO2 = None
-        self.__Humidity = None
-        self.__Temperature = None
+        self.__CO2 = 0
+        self.__Humidity = 0
+        self.__Temperature = 0
         self.__button_closePort = None
         self.__button_openPort = None
         self.__combo_COMPort = None
@@ -209,8 +212,10 @@ class UI:
         result = pmv_ppd(tdb=self.__Temperature, tr=25, vr=air_relative, rh=self.__Humidity, met=metabolic_rate, clo=clothing, standard="ashrae")
         if result['pmv'] <= -2.5:
             self.__var_sensation.set("Cold")
+            self.__style_TH_Label.configure("THFrame.TLabel", background="blue")
         elif -2.5 < result['pmv'] <= -1.5:
             self.__var_sensation.set("Cool")
+            self.__style_TH_Label.configure("THFrame.TLabel", background="SkyBlue1")
         elif -1.5 < result['pmv'] <= -0.5:
             self.__var_sensation.set("Slightly Cool")
             self.__style_TH_Label.configure("THFrame.TLabel", background="LightBlue1")
@@ -219,11 +224,13 @@ class UI:
             self.__style_TH_Label.configure("THFrame.TLabel", background="snow")
         elif 0.5 < result['pmv'] <= 1.5:
             self.__var_sensation.set("Slightly Warm")
-            self.__style_TH_Label.configure("THFrame.TLabel", background="sandy brown")
+            self.__style_TH_Label.configure("THFrame.TLabel", background="peach puff")
         elif 1.5 < result['pmv'] <= 2.5:
             self.__var_sensation.set("Warm")
+            self.__style_TH_Label.configure("THFrame.TLabel", background="sandy brown")
         else:
             self.__var_sensation.set("Hot")
+            self.__style_TH_Label.configure("THFrame.TLabel", background="tomato")
 
 
     def update_readings(self):
@@ -294,7 +301,7 @@ class UI:
             self.__portCloseEvent.set()
             self.__progressbar.stop()
     def temperature_unitChange(self):
-        # TODO: add code to modify existing reading
+
         if self.__selected_temperature_unit.get() == "°C":
             self.__t_var.set(str(self.__Temperature))
         else:
