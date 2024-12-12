@@ -1,3 +1,9 @@
+"""
+# Author: Pratik Gawde, Pranita Shewale
+# Date: 11 Nov, 2024
+# PROJECT 02
+# Description: main file for thermalComfortDashboard
+"""
 import os
 import time
 from time import sleep
@@ -22,8 +28,16 @@ from Sensor import Sensor, SensorError
 class UI:
 
     def __init__(self):
+        """
+        class constructor
+        """
         # create window first
 
+        self.__frame_chart = None
+        self.__style_CO2_Frame = None
+        self.__style_TH_Label = None
+        self.__progressbar = None
+        self.__frame_wrapperCOM_Progress = None
         self.__progressbarValue = 0
         self.__canvas_widget = None
         self.__canvas = None
@@ -97,46 +111,48 @@ class UI:
         self.__dataUpdated_LOG_Event = threading.Event()
         self.__dataUpdated_GUI_Event = threading.Event()
         self.__root = Tk()
-        self.__dict_activity={
-        "Seated, quiet": 1.0,
-        "Reading, seated": 1.0,
-        "Writing": 1.0,
-        "Typing": 1.1,
-        "Standing, relaxed": 1.2,
-        "Filing, seated": 1.2,
-        "Flying aircraft, routine": 1.2,
-        "Filing, standing": 1.4,
-        "Driving a car": 1.5,
-        "Walking about": 1.7,
-        "Cooking": 1.8,
-        "Table sawing": 1.8,
-        "Walking 2mph (3.2kmh)": 2.0,
-        "Lifting/packing": 2.1,
-        "Seated, heavy limb movement": 2.2,
-        "Light machine work": 2.2,
-        "Flying aircraft, combat": 2.4,
-        "Walking 3mph (4.8kmh)": 2.6,
-        "House cleaning": 2.7,
-        "Driving, heavy vehicle": 3.2,
-        "Dancing": 3.4,
-        "Calisthenics": 3.5,
-        "Walking 4mph (6.4kmh)": 3.8,
-        "Tennis": 3.8,
-        "Heavy machine work": 4.0,
-        "Handling 100lb (45 kg) bags": 4.0
+        self.__dict_activity = {
+            "Seated, quiet": 1.0,
+            "Reading, seated": 1.0,
+            "Writing": 1.0,
+            "Typing": 1.1,
+            "Standing, relaxed": 1.2,
+            "Filing, seated": 1.2,
+            "Flying aircraft, routine": 1.2,
+            "Filing, standing": 1.4,
+            "Driving a car": 1.5,
+            "Walking about": 1.7,
+            "Cooking": 1.8,
+            "Table sawing": 1.8,
+            "Walking 2mph (3.2kmh)": 2.0,
+            "Lifting/packing": 2.1,
+            "Seated, heavy limb movement": 2.2,
+            "Light machine work": 2.2,
+            "Flying aircraft, combat": 2.4,
+            "Walking 3mph (4.8kmh)": 2.6,
+            "House cleaning": 2.7,
+            "Driving, heavy vehicle": 3.2,
+            "Dancing": 3.4,
+            "Calisthenics": 3.5,
+            "Walking 4mph (6.4kmh)": 3.8,
+            "Tennis": 3.8,
+            "Heavy machine work": 4.0,
+            "Handling 100lb (45 kg) bags": 4.0
         }
-        self.__dict_clothing={"Walking shorts, short-sleeve shirt": 0.36,
-        "Typical summer indoor clothing": 0.5,
-        "Knee-length skirt, short-sleeve shirt, sandals, underwear": 0.54,
-        "Trousers, short-sleeve shirt, socks, shoes, underwear": 0.57,
-        "Trousers, long-sleeve shirt": 0.61,
-        "Knee-length skirt, long-sleeve shirt, full slip": 0.67,
-        "Sweat pants, long-sleeve sweatshirt": 0.74,
-        "Jacket, Trousers, long-sleeve shirt": 0.96,
-        "Typical winter indoor clothing": 1.0}
+        self.__dict_clothing = {"Walking shorts, short-sleeve shirt": 0.36,
+                                "Typical summer indoor clothing": 0.5,
+                                "Knee-length skirt, short-sleeve shirt, sandals, underwear": 0.54,
+                                "Trousers, short-sleeve shirt, socks, shoes, underwear": 0.57,
+                                "Trousers, long-sleeve shirt": 0.61,
+                                "Knee-length skirt, long-sleeve shirt, full slip": 0.67,
+                                "Sweat pants, long-sleeve sweatshirt": 0.74,
+                                "Jacket, Trousers, long-sleeve shirt": 0.96,
+                                "Typical winter indoor clothing": 1.0}
 
     def on_closing(self):
-
+        """
+        this function is called when window is closed
+        """
         plt.close(self.__fig)
         self.__progressbar.stop()
 
@@ -157,14 +173,18 @@ class UI:
         self.__exitEvent.clear()
         self.__root.quit()
 
-
     def start(self):
+        """
+        this function is called when program starts to draw ui
+        """
         self.draw_gui()
         self.__root.mainloop()
         print("gui exit")
 
     def sensor_data_thread(self):
-
+        """
+        this is the THREAD to collect data from sensor
+        """
         try:
             scd40 = Sensor(self.__combo_COMPort.get().split(":")[0])
             self.__combo_COMPort["state"] = "disabled"
@@ -182,8 +202,8 @@ class UI:
                     self.__combo_COMPort["state"] = "readonly"
                     self.__button_openPort["state"] = "enabled"
                     self.__button_closePort["state"] = "disabled"
-                    self.__active_data_thread_handle=None
-                    self.__progressbarValue=0
+                    self.__active_data_thread_handle = None
+                    self.__progressbarValue = 0
                     return
 
                 scd40.getData()
@@ -206,10 +226,14 @@ class UI:
             messagebox.showerror("Error", f"Failed to open port {self.__combo_COMPort.get().split(":")[0]} !")
 
     def update_sensation(self):
+        """
+        this function is called periodically to update the ui elements from UI thread
+        """
         metabolic_rate = self.__dict_activity[self.__combo_activity.get()]
         clothing = clo_dynamic(self.__dict_clothing[self.__combo_clothing.get()], metabolic_rate)
         air_relative = v_relative(0.1, metabolic_rate)
-        result = pmv_ppd(tdb=self.__Temperature, tr=25, vr=air_relative, rh=self.__Humidity, met=metabolic_rate, clo=clothing, standard="ashrae")
+        result = pmv_ppd(tdb=self.__Temperature, tr=25, vr=air_relative, rh=self.__Humidity, met=metabolic_rate,
+                         clo=clothing, standard="ashrae")
         if result['pmv'] <= -2.5:
             self.__var_sensation.set("Cold")
             self.__style_TH_Label.configure("THFrame.TLabel", background="blue")
@@ -232,9 +256,10 @@ class UI:
             self.__var_sensation.set("Hot")
             self.__style_TH_Label.configure("THFrame.TLabel", background="tomato")
 
-
     def update_readings(self):
-        
+        """
+        this function is called periodically to update the ui elements from UI thread
+        """
         if self.__dataUpdated_GUI_Event.is_set():
             self.__dataUpdated_GUI_Event.clear()
             print("updateUI...")
@@ -251,13 +276,13 @@ class UI:
             # 3. update co2 reading in ui
             self.__co2_var.set(str(self.__CO2))
             if self.__CO2 <= 600:
-                self.__style_CO2_Frame.configure("CO2Frame.TFrame",background="lime green")
+                self.__style_CO2_Frame.configure("CO2Frame.TFrame", background="lime green")
                 self.__style_CO2_Label.configure("CO2Frame.TLabel", background="lime green")
             elif self.__CO2 <= 1000:
-                self.__style_CO2_Frame.configure("CO2Frame.TFrame",background="OliveDrab1")
+                self.__style_CO2_Frame.configure("CO2Frame.TFrame", background="OliveDrab1")
                 self.__style_CO2_Label.configure("CO2Frame.TLabel", background="OliveDrab1")
             elif self.__CO2 <= 2000:
-                self.__style_CO2_Frame.configure("CO2Frame.TFrame",background="sandy brown")
+                self.__style_CO2_Frame.configure("CO2Frame.TFrame", background="sandy brown")
                 self.__style_CO2_Label.configure("CO2Frame.TLabel", background="sandy brown")
             else:
                 self.__style_CO2_Frame.configure("CO2Frame.TFrame", background="orange red")
@@ -273,6 +298,9 @@ class UI:
         self.__root.after(100, self.update_readings)
 
     def get_com_ports(self):
+        """
+        this function is used to get available com ports in system
+        """
         ports = serial.tools.list_ports.comports()
         l_ports = []
         for port, desc, hwid in ports:
@@ -280,6 +308,9 @@ class UI:
         return l_ports
 
     def open_button_action(self):
+        """
+        this function is called when open com port button is pressed in ui
+        """
         print(self.__combo_COMPort.get())
 
         if self.__combo_COMPort.get() == "":  # Check if nothing is selected
@@ -295,13 +326,19 @@ class UI:
             print(err)
 
     def close_button_action(self):
+        """
+        this function is called when close com port button is pressed in ui
+        """
         print(f"request to close {self.__combo_COMPort.get()}")
         if self.__active_data_thread_handle:
             # assumes that thread was created and is running
             self.__portCloseEvent.set()
             self.__progressbar.stop()
-    def temperature_unitChange(self):
 
+    def temperature_unitChange(self):
+        """
+        this function is called to change units of readings from c to f and vice versa
+        """
         if self.__selected_temperature_unit.get() == "°C":
             self.__t_var.set(str(self.__Temperature))
         else:
@@ -309,9 +346,12 @@ class UI:
         print(f"{self.__selected_temperature_unit.get()} is set")
 
     def sensor_log_thread(self):
-        self.__button_stop_log["state"]="enabled"
+        """
+        this is THREAD that will do the logging to file when logging is started
+        """
+        self.__button_stop_log["state"] = "enabled"
         self.__button_start_log["state"] = "disabled"
-        self.__button_filebrowse["state"]= "disabled"
+        self.__button_filebrowse["state"] = "disabled"
 
         self.__entry_folderName["state"] = "disabled"
         self.__entry_fileName["state"] = "disabled"
@@ -329,9 +369,9 @@ class UI:
 
         if self.__var_only_difference.get():
             print("checked")
-        logfileObj=None
+        logfileObj = None
         if self.__var_append_create.get() == "create":
-            logfileObj=open(f"{self.__entry_folderName.get()}/{self.__entry_fileName.get()}.csv", "w")
+            logfileObj = open(f"{self.__entry_folderName.get()}/{self.__entry_fileName.get()}.csv", "w")
             logfileObj.write("time,t,h,co2\n")
         else:
             # append is selected. this assumes that column headers are already present
@@ -340,7 +380,7 @@ class UI:
             if self.__exitEvent.is_set():
                 if logfileObj:
                     logfileObj.close()
-                    logfileObj=None
+                    logfileObj = None
                 return
             if self.__stopLoggingEvent.is_set():
                 self.__stopLoggingEvent.clear()
@@ -356,23 +396,21 @@ class UI:
                 self.__checkbox_difference["state"] = "enabled"
                 if logfileObj:
                     logfileObj.close()
-                    logfileObj=None
+                    logfileObj = None
                 return
             if self.__dataUpdated_LOG_Event.is_set():
                 self.__dataUpdated_LOG_Event.clear()
                 # code comes here only when data is generated
                 print(f"LOG :{self.__Temperature},{self.__Humidity},{self.__CO2}")
 
-
                 if self.__var_only_difference.get():
-                    if (self.__Temperature != lastTemperature)or(self.__Humidity != lastHumidity)or(self.__CO2 != lastCO2):
+                    if (self.__Temperature != lastTemperature) or (self.__Humidity != lastHumidity) or (
+                            self.__CO2 != lastCO2):
                         logfileObj.write(f"{int(time.time())},{self.__Temperature},{self.__Humidity},{self.__CO2}\n")
                     else:
                         print("reading same as before!!")
                 else:
                     logfileObj.write(f"{int(time.time())},{self.__Temperature},{self.__Humidity},{self.__CO2}\n")
-
-
 
                 lastTemperature = self.__Temperature
                 lastHumidity = self.__Humidity
@@ -380,19 +418,23 @@ class UI:
             time.sleep(0.1)
 
     def start_logging(self):
+        """
+        this function is called when start log button is pressed in ui.
+        this then launches the logging thread
+        """
         folder_path = self.__entry_folderName.get()
         file_name = self.__entry_fileName.get()
 
         if not folder_path:
-            messagebox.showerror(title="folder error",message="Invalid folder path")
+            messagebox.showerror(title="folder error", message="Invalid folder path")
             return
 
         if not os.path.isdir(folder_path):
-            messagebox.showerror(title="folder error",message=f"{folder_path} is invalid")
+            messagebox.showerror(title="folder error", message=f"{folder_path} is invalid")
             return
 
         if not file_name:
-            messagebox.showerror(title="file error",message=f"Invalid file name")
+            messagebox.showerror(title="file error", message=f"Invalid file name")
             return
 
         print(f"Folder - {folder_path}, File - {file_name}")
@@ -401,12 +443,19 @@ class UI:
         self.__logging_thread_handle.start()
 
     def stop_logging(self):
+        """
+        this function is called when stop logging button is pressed in the ui
+        this signals the logging thread to terminate
+        """
         print(f"request to stop logging")
         if self.__logging_thread_handle:
             # assumes that thread was created and is running
             self.__stopLoggingEvent.set()
 
     def browse_folder(self):
+        """
+        this function is used to ask for logging folder
+        """
         selected_folder = askdirectory(title="Select a folder")
         if selected_folder:
             self.__entry_folderName.delete(0, END)
@@ -414,6 +463,10 @@ class UI:
             print(f"Selected folder: {selected_folder}")
 
     def apply_changed_settings(self):
+        """
+        this function is called when apply button is pressed in ui.
+        it generates a new graph based on settings
+        """
         # print(self.__combo_activity.get())
         # print(self.__combo_clothing.get())
         list_rh, list_low, list_high = self.get_graph_margins()
@@ -425,12 +478,17 @@ class UI:
         self.__ax.set_ylabel('Relative Humidity (%)')
         self.__ax.set_xlim(10, 36)
         self.__ax.set_ylim(0, 100)
+        self.__ax.set_xticks(range(10, 36, 2))
+        self.__ax.set_yticks(range(0, 100, 10))
         self.__ax.set_title('T vs Rh in Neutral Band')
         plt.grid()
 
         self.__canvas.draw()
 
     def get_graph_margins(self):
+        """
+        this function gets neutral band margins
+        """
         low_list = []
         high_list = []
         rh_list = []
@@ -444,7 +502,8 @@ class UI:
             high = 0.0
             while i < 36.0:
 
-                result = pmv_ppd(tdb=i, tr=25, vr=air_relative, rh=rh, met=metabolic_rate, clo=clothing, standard="ashrae")
+                result = pmv_ppd(tdb=i, tr=25, vr=air_relative, rh=rh, met=metabolic_rate, clo=clothing,
+                                 standard="ashrae")
                 if result['pmv'] > -0.5 and low == 0.0:
                     low = i
                 elif result['pmv'] >= 0.5 and high == 0.0:
@@ -490,9 +549,12 @@ class UI:
         #     low_list.append(round(low_temp, 1))
         #     high_list.append(round(high_temp, 1))
 
-        return rh_list,low_list,high_list
-    def draw_gui(self):
+        return rh_list, low_list, high_list
 
+    def draw_gui(self):
+        """
+        this is master function for all UI elements to be created and packed
+        """
         self.__root.title("thermalComfortDashboard 1.0")
         self.__root.minsize(width=1000, height=1000)
 
@@ -502,7 +564,7 @@ class UI:
         self.__co2_var = StringVar()
 
         self.__frame_wrapperCOM_Progress = ttk.Frame()
-        self.__frame_wrapperCOM_Progress.pack(anchor="nw",fill="x",expand=TRUE)
+        self.__frame_wrapperCOM_Progress.pack(anchor="nw", fill="x", expand=TRUE)
         # create a Frame for COM Port -------------------------------------------------------
         self.__frame_ComPort = ttk.Frame(
             self.__frame_wrapperCOM_Progress,
@@ -527,10 +589,10 @@ class UI:
         self.__button_closePort.pack(side=LEFT, padx=10)
         # -------------------------------------
 
-        self.__progressbar = ttk.Progressbar(self.__frame_wrapperCOM_Progress,mode="indeterminate")
-        self.__progressbar.pack(side=LEFT,fill="x",expand=True,padx=10)
+        self.__progressbar = ttk.Progressbar(self.__frame_wrapperCOM_Progress, mode="indeterminate")
+        self.__progressbar.pack(side=LEFT, fill="x", expand=True, padx=10)
         # -------------------------------------
-        #create a wrapper frame
+        # create a wrapper frame
         self.__frame_reading_wrapper = ttk.Frame(
             self.__root,
             # width=50,
@@ -553,7 +615,7 @@ class UI:
             padding=20,
             style="THFrame.TLabel"
         )
-        self.__frame_temperature.pack(side=LEFT, anchor="nw", padx=10, pady=10,fill="x",expand=TRUE)
+        self.__frame_temperature.pack(side=LEFT, anchor="nw", padx=10, pady=10, fill="x", expand=TRUE)
 
         # 1.create a temperature text Label
         self.__label_temperatureText = ttk.Label(
@@ -629,7 +691,7 @@ class UI:
             self.__frame_reading_wrapper, borderwidth=5, relief="raised", padding=20,
             style="THFrame.TLabel"
         )
-        self.__frame_humidity.pack( side =LEFT, anchor="nw", padx=10, pady=10,expand=TRUE,fill="x")
+        self.__frame_humidity.pack(side=LEFT, anchor="nw", padx=10, pady=10, expand=TRUE, fill="x")
 
         # 1. create label for humidity text
         self.__label_humidityText = ttk.Label(
@@ -677,11 +739,10 @@ class UI:
         self.__style_CO2_Label = ttk.Style()
         self.__style_CO2_Label.configure("CO2Frame.TLabel", background="LightBlue1")
 
-
         self.__frame_CO2 = ttk.Frame(
             self.__frame_reading_wrapper, borderwidth=5, relief="raised", padding=20, style="CO2Frame.TFrame"
         )
-        self.__frame_CO2.pack(side=LEFT, anchor="nw", padx=10, pady=10,fill="x", expand=TRUE)
+        self.__frame_CO2.pack(side=LEFT, anchor="nw", padx=10, pady=10, fill="x", expand=TRUE)
 
         # 1. create label for co2 text
         self.__label_CO2Text = ttk.Label(
@@ -705,7 +766,7 @@ class UI:
             padding=5,
             textvariable=self.__co2_var,
             anchor="e",
-            style = "CO2Frame.TLabel"
+            style="CO2Frame.TLabel"
         )
         # self.__label_CO2Reading["relief"] = SOLID
         self.__label_CO2Reading.pack(pady=5, side=LEFT, fill="x", expand=TRUE)
@@ -725,8 +786,8 @@ class UI:
         self.__label_CO2Unit.pack(pady=5, side=LEFT, fill="x", expand=TRUE)
 
         # FRAME for LOGGING--------------------------------------------------
-        self.__frame_log = ttk.Frame(self.__root,width=50, height=50, borderwidth=5, relief="raised", padding=20)
-        self.__frame_log.pack( anchor="nw", padx=10, pady=10,  fill="x")
+        self.__frame_log = ttk.Frame(self.__root, width=50, height=50, borderwidth=5, relief="raised", padding=20)
+        self.__frame_log.pack(anchor="nw", padx=10, pady=10, fill="x")
 
         # Title Label
         self.__title_label = ttk.Label(self.__frame_log, text="Log", font=("Arial", 14))
@@ -736,10 +797,12 @@ class UI:
         self.__frame_button_log = ttk.Frame(self.__frame_log)
         self.__frame_button_log.pack(fill="x", pady=5)
 
-        self.__button_start_log = ttk.Button(self.__frame_button_log, text="Start", command=self.start_logging, width=10)
+        self.__button_start_log = ttk.Button(self.__frame_button_log, text="Start", command=self.start_logging,
+                                             width=10)
         self.__button_start_log.pack(side="left", padx=5)
 
-        self.__button_stop_log = ttk.Button(self.__frame_button_log, state="disabled",text="Stop", command=self.stop_logging, width=10)
+        self.__button_stop_log = ttk.Button(self.__frame_button_log, state="disabled", text="Stop",
+                                            command=self.stop_logging, width=10)
         self.__button_stop_log.pack(side="left", padx=5)
 
         # Folder Path Frame
@@ -771,10 +834,12 @@ class UI:
 
         self.__var_append_create = StringVar(value="append")
 
-        self.__radio_append = ttk.Radiobutton(self.__frame_log, text="Append if exists", variable=self.__var_append_create, value="append")
+        self.__radio_append = ttk.Radiobutton(self.__frame_log, text="Append if exists",
+                                              variable=self.__var_append_create, value="append")
         self.__radio_append.pack(side="left", padx=5)
 
-        self.__radio_create = ttk.Radiobutton(self.__frame_log, text="Create new", variable=self.__var_append_create, value="create")
+        self.__radio_create = ttk.Radiobutton(self.__frame_log, text="Create new", variable=self.__var_append_create,
+                                              value="create")
         self.__radio_create.pack(side="left", padx=5)
 
         # Checkbox and Dropdown Frame
@@ -782,48 +847,51 @@ class UI:
         # misc_frame.pack(fill="x", pady=5)
 
         self.__var_only_difference = BooleanVar()
-        self.__checkbox_difference = ttk.Checkbutton(self.__frame_log, text="Log Differences", variable=self.__var_only_difference)
+        self.__checkbox_difference = ttk.Checkbutton(self.__frame_log, text="Log Differences",
+                                                     variable=self.__var_only_difference)
         self.__checkbox_difference.pack(side="left", padx=5)
 
         # ---------------------------------------------------------
         self.__frame_sensation = ttk.Frame(self.__root, borderwidth=5, relief="raised", padding=20)
-        self.__frame_sensation.pack( anchor="nw", padx=10, pady=10, fill="x")
+        self.__frame_sensation.pack(anchor="nw", padx=10, pady=10, fill="x")
 
         self.__label_sensation = ttk.Label(self.__frame_sensation, text="Sensation", font=("Arial", 30))
         self.__label_sensation.pack(anchor="w", pady=5)
 
-        self.__var_sensation=StringVar()
+        self.__var_sensation = StringVar()
         self.__var_sensation.set("___")
-        self.__label_sensation_reading = ttk.Label(self.__frame_sensation, text="-",textvariable=self.__var_sensation, font=("Arial", 30),)
+        self.__label_sensation_reading = ttk.Label(self.__frame_sensation, text="-", textvariable=self.__var_sensation,
+                                                   font=("Arial", 30), )
         self.__label_sensation_reading.pack(anchor="w", pady=5)
 
-        self.__frame_settings=ttk.Frame(self.__frame_sensation, borderwidth=5, relief="raised", padding=20)
-        self.__frame_settings.pack(anchor="w",side=LEFT)
-        self.__frame_activity=ttk.Frame(self.__frame_settings,  borderwidth=5,  padding=20)
+        self.__frame_settings = ttk.Frame(self.__frame_sensation, borderwidth=5, relief="raised", padding=20)
+        self.__frame_settings.pack(anchor="w", side=LEFT)
+        self.__frame_activity = ttk.Frame(self.__frame_settings, borderwidth=5, padding=20)
         self.__frame_activity.pack(side=LEFT)
         self.__label_activity = ttk.Label(self.__frame_activity, text="Activity", font=("Arial", 14))
         self.__label_activity.pack()
-        self.__combo_activity= ttk.Combobox(self.__frame_activity, width=30,values=[key for key in self.__dict_activity])
+        self.__combo_activity = ttk.Combobox(self.__frame_activity, width=30,
+                                             values=[key for key in self.__dict_activity])
         self.__combo_activity.set("Seated, quiet")
         self.__combo_activity.pack()
 
-        self.__frame_clothing = ttk.Frame(self.__frame_settings,  borderwidth=5, padding=20)
+        self.__frame_clothing = ttk.Frame(self.__frame_settings, borderwidth=5, padding=20)
         self.__frame_clothing.pack(side=LEFT)
         self.__label_clothing = ttk.Label(self.__frame_clothing, text="Clothing", font=("Arial", 14))
         self.__label_clothing.pack()
-        self.__combo_clothing = ttk.Combobox(self.__frame_clothing, width=30, values=[key for key in self.__dict_clothing])
+        self.__combo_clothing = ttk.Combobox(self.__frame_clothing, width=30,
+                                             values=[key for key in self.__dict_clothing])
         self.__combo_clothing.set("Typical summer indoor clothing")
         self.__combo_clothing.pack()
 
-        self.__button_apply_settings = ttk.Button(self.__frame_settings, text="apply", command=self.apply_changed_settings)
+        self.__button_apply_settings = ttk.Button(self.__frame_settings, text="apply",
+                                                  command=self.apply_changed_settings)
         self.__button_apply_settings.pack(side=LEFT, padx=10)
-
-
 
         # MATPLOtLIB---------------------------------------------------------------------------------------------------------
         self.__fig, self.__ax = plt.subplots()
 
-        list_rh,list_low,list_high = self.get_graph_margins()
+        list_rh, list_low, list_high = self.get_graph_margins()
 
         self.__ax.fill_betweenx(list_rh, list_low, list_high, color='teal', alpha=0.2)
         #
@@ -851,8 +919,10 @@ class UI:
         # Extra trial space---------------------------------------------------------
         self.__root.protocol("WM_DELETE_WINDOW", self.on_closing)
 
+
 def main():
     thermalDashboard = UI()
     thermalDashboard.start()
-    
+
+
 main()

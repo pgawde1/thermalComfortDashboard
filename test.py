@@ -1,3 +1,10 @@
+"""
+# Author: Pratik Gawde, Pranita Shewale
+# Date: 11 Nov, 2024
+# PROJECT 02
+# Description: test file for thermalComfortDashboard
+"""
+
 import pytest
 
 from Sensor import *
