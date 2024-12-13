@@ -46,3 +46,26 @@ STM32 nucleo series of boards have UART access of MCU to connected debugger. Thi
 ### Verify hardware is detected
 ![device manager should have STMicro](images/detect1.jpg)
 ![device manager should have STMicro](images/detect2.jpg)
+
+### Working of Code
+
+This code is a mix of event based approach and multithreaded approach.
+
+UI elements like buttons only do quick actions that need immediate addressing.
+
+Slow or periodic events are done in background running Python Threads.
+
+Threads are as follows:
+1. Sensor Data collection thread - timeperiod of 1 sec
+2. Data Logging Thread - timeperiod of 0.1 sec
+3. GUI Thread with periodic wakeup - timeperiod of 0.1 sec
+
+The timeperiod of above threads are decided based upon responsiveness required.
+Synchronization of thread is done using Python Event Class.
+Sensor Data collection thread triggers event for each thread once data is received.
+Similarly. GUI Thread can set an event when GUI has exit to turn off Sensor Data Collection or Data Logging.
+
+However, there could be an approach with Python Queue class if large volume of data is expected.
+
+![blockDiagram](images/blockDiagram.png)
+
