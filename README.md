@@ -11,7 +11,7 @@ The communication protocol used over UART is modbus.
 Register address 0 to 5 are used as data from device address 0(STM32).
 
 ***Note:***
-STM32 nucleo series of boards have UART access of MCU to connected debugger. This feature makes it possible to power the device and get data wothout much complexity
+STM32 nucleo series of boards have UART access of MCU to connected debugger. This feature makes it possible to power the device and get data without much complexity
 
 ***Assumptions:***
 1. sensation is figured out using PMV_PPD method. Mean Radiant Temperature is assumed to be 25 C.
